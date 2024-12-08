@@ -20,7 +20,7 @@ spec:
       project: default
       source:
         path: 'applicationsets/demo-descheduler/manifests'
-        repoURL: https://github.com/erkerc/gitops-demo/gitops-demo.git
+        repoURL: https://github.com/erkerc/gitops-demo.git
       syncPolicy:
         automated:
           prune: true

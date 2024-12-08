@@ -8,7 +8,7 @@ spec:
     namespace: demo-windows-vmpool
   project: default
   source:
-    repoURL: https://github.com/erkerc/gitops-demo/gitops-demo.git
+    repoURL: https://github.com/erkerc/gitops-demo.git
     path: applications/demo-windows-vmpool/manifests
     targetRevision: HEAD
   syncPolicy:
