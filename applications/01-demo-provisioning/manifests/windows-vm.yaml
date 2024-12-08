@@ -18,7 +18,7 @@ spec:
         storage:
           resources:
             requests:
-              storage: 32Gi
+              storage: 70Gi
   runStrategy: RerunOnFailure
   template:
     metadata:
