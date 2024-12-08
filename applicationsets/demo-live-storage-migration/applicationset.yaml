@@ -20,7 +20,7 @@ spec:
       project: default
       source:
         path: 'applicationsets/demo-live-storage-migration/manifests'
-        repoURL: https://gitea.apps.openshift.demoes.live/demo-user/gitops-demo.git
+        repoURL: https://github.com/erkerc/gitops-demo/gitops-demo.git
       syncPolicy:
         automated:
           prune: true

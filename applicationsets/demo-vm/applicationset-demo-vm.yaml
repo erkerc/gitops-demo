@@ -15,7 +15,7 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://gitea.apps.openshift.demoes.live/demo-user/gitops-demo.git
+        repoURL: https://github.com/erkerc/gitops-demo/gitops-demo.git
         targetRevision: HEAD
         path: "applicationsets/demo-vm/kustomize/{{metadata.labels.env}}"
         kustomize:
