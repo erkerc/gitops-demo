@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: demo-descheduler
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - clusters:
+      selector:
+        matchExpressions:
+          - key: cluster.kubernetes.io/cluster-name
+            operator: In
+            values:
+              - lab
+  template:
+    metadata:
+      name: '{{.name}}-demo-descheduler'
+    spec:
+      project: default
+      source:
+        path: 'applicationsets/demo-descheduler/manifests'
+        repoURL: https://gitea.apps.openshift.demoes.live/demo-user/gitops-demo.git
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: false
+        syncOptions:
+        - CreateNamespace=true
+        - RespectIgnoreDifferences=true
+      destination:
+        server: '{{.server}}'
+        namespace: demo-descheduler
+

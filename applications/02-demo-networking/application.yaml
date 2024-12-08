@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-networking
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: networking-demo-project1
+  project: default
+  source:
+    repoURL: https://gitea.apps.openshift.demoes.live/demo-user/gitops-demo.git
+    path: applications/02-demo-networking/manifests
+    targetRevision: HEAD
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false

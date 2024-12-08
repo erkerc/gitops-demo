@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    openshift.io/description: OADP Backup Demo Project
+    openshift.io/display-name: OADP Backup Demo Project
+    argocd.argoproj.io/sync-wave: "1"
+  name: demo-oadp-backup-vms

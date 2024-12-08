@@ -1,0 +1,171 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  annotations:
+    cpuCores.params.task.kubevirt.io/type: number
+    cpuSockets.params.task.kubevirt.io/type: number
+    cpuThreads.params.task.kubevirt.io/type: number
+    deleteDatavolumeTemplate.params.task.kubevirt.io/type: boolean
+    deleteTemplate.params.task.kubevirt.io/type: boolean
+    deleteTemplateParameters.params.task.kubevirt.io/type: boolean
+    memory.params.task.kubevirt.io/type: memory
+    task.kubevirt.io/associatedServiceAccount: modify-vm-template-task
+    templateName.params.task.kubevirt.io/apiVersion: template.openshift.io/v1
+    templateName.params.task.kubevirt.io/kind: Template
+    templateNamespace.params.task.kubevirt.io/kind: namespace
+  labels:
+    app.kubernetes.io/component: tektonTasks
+    app.kubernetes.io/name: tekton-tasks
+    task.kubevirt.io/category: modify-vm-template
+    task.kubevirt.io/type: modify-vm-template
+  name: modify-vm-template
+spec:
+  params:
+  - description: Name of an OpenShift template.
+    name: templateName
+    type: string
+  - default: ""
+    description: Namespace of an source OpenShift template. (defaults to active namespace)
+    name: templateNamespace
+    type: string
+  - default: "0"
+    description: Number of CPU sockets
+    name: cpuSockets
+    type: string
+  - default: "0"
+    description: Number of CPU cores
+    name: cpuCores
+    type: string
+  - default: "0"
+    description: Number of CPU threads
+    name: cpuThreads
+    type: string
+  - default: ""
+    description: Number of memory vm can use
+    name: memory
+    type: string
+  - default: []
+    description: Template labels. If template contains same label, it will be replaced.
+      Each param should have KEY:VAL format. Eg ["key:value", "key:value"].
+    name: templateLabels
+    type: array
+  - default: []
+    description: Template Annotations. If template contains same annotation, it will
+      be replaced. Each param should have KEY:VAL format. Eg ["key:value", "key:value"]
+    name: templateAnnotations
+    type: array
+  - default: []
+    description: VM labels. If VM contains same label, it will be replaced. Each param
+      should have KEY:VAL format. Eg ["key:value", "key:value"].
+    name: vmLabels
+    type: array
+  - default: []
+    description: VM annotations. If VM contains same annotation, it will be replaced.
+      Each param should have KEY:VAL format. Eg ["key:value", "key:value"].
+    name: vmAnnotations
+    type: array
+  - default: []
+    description: 'VM disks in json format, replace vm disk if same name, otherwise
+      new disk is appended. Eg [{"name": "test", "cdrom": {"bus": "sata"}}, {"name":
+      "disk2"}]'
+    name: disks
+    type: array
+  - default: "false"
+    description: Set to "true" or "false" if task should delete VM disks. New disks
+      (from disks parameter) are applied, after old disks are deleted.
+    name: deleteDisks
+    type: string
+  - default: []
+    description: 'VM volumes in json format, replace vm volume if same name, otherwise
+      new volume is appended. Eg [{"name": "virtiocontainerdisk", "containerDisk":
+      {"image": "kubevirt/virtio-container-disk"}}]'
+    name: volumes
+    type: array
+  - default: []
+    description: 'Datavolume templates in json format, replace datavolume if same
+      name, otherwise new datavolume is appended. If deleteDatavolumeTemplate is set,
+      first datavolumes are deleted and then datavolumes from this attribute are added.
+      Eg [{"apiVersion": "cdi.kubevirt.io/v1beta1", "kind": "DataVolume", "metadata":{"name":
+      "test1"}, "spec": {"source": {"http": {"url": "test.somenonexisting"}}}}]'
+    name: datavolumeTemplates
+    type: array
+  - default: "false"
+    description: Set to "true" or "false" if task should delete datavolume template
+      in template and all associated volumes and disks.
+    name: deleteDatavolumeTemplate
+    type: string
+  - default: "false"
+    description: Set to "true" or "false" if task should delete VM volumes. New volumes
+      (from volumes parameter) are applied, after old volumes are deleted.
+    name: deleteVolumes
+    type: string
+  - default: []
+    description: 'Definition of template parameters. Eg [{"description": "VM name",
+      "name": "NAME"}]'
+    name: templateParameters
+    type: array
+  - default: "false"
+    description: Set to "true" or "false" if task should delete template parameters.
+      New parameters (from templateParameters parameter) are applied, after old parameters
+      are deleted.
+    name: deleteTemplateParameters
+    type: string
+  - default: "false"
+    description: Set to `true` or `false` if task should delete the specified template.
+      If set to 'true' the template will be deleted and all other parameters are ignored.
+    name: deleteTemplate
+    type: string
+  results:
+  - description: The name of a template that was updated.
+    name: name
+    type: string
+  - description: The namespace of a template that was updated.
+    name: namespace
+    type: string
+  steps:
+  - args:
+    - --output=yaml
+    - --template-labels
+    - $(params.templateLabels)
+    - --template-annotations
+    - $(params.templateAnnotations)
+    - --vm-labels
+    - $(params.vmLabels)
+    - --vm-annotations
+    - $(params.vmAnnotations)
+    - --disks
+    - $(params.disks)
+    - --volumes
+    - $(params.volumes)
+    - --datavolumeTemplates
+    - $(params.datavolumeTemplates)
+    - --templateParameters
+    - $(params.templateParameters)
+    command:
+    - modify-vm-template
+    computeResources: {}
+    env:
+    - name: TEMPLATE_NAME
+      value: $(params.templateName)
+    - name: TEMPLATE_NAMESPACE
+      value: $(params.templateNamespace)
+    - name: CPU_SOCKETS
+      value: $(params.cpuSockets)
+    - name: CPU_CORES
+      value: $(params.cpuCores)
+    - name: CPU_THREADS
+      value: $(params.cpuThreads)
+    - name: MEMORY
+      value: $(params.memory)
+    - name: DELETE_DATAVOLUME_TEMPLATE
+      value: $(params.deleteDatavolumeTemplate)
+    - name: DELETE_DISKS
+      value: $(params.deleteDisks)
+    - name: DELETE_VOLUMES
+      value: $(params.deleteVolumes)
+    - name: DELETE_TEMPLATE_PARAMETERS
+      value: $(params.deleteTemplateParameters)
+    - name: DELETE_TEMPLATE
+      value: $(params.deleteTemplate)
+    image: registry.redhat.io/container-native-virtualization/kubevirt-tekton-tasks-create-datavolume-rhel9:v4.14
+    name: modifyvmtemplate

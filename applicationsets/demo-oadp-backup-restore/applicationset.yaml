@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: demo-oadp-backup-restore
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - clusters:
+      selector:
+        matchExpressions:
+          - key: cluster.kubernetes.io/cluster-name
+            operator: In
+            values:
+              - lab
+  template:
+    metadata:
+      name: '{{.name}}-demo-oadp-backup-restore'
+    spec:
+      project: default
+      source:
+        path: 'applicationsets/wip-demo-oadp-backup-restore/manifests'
+        repoURL: https://gitea.apps.openshift.demoes.live/demo-user/gitops-demo.git
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: false
+        syncOptions:
+        - CreateNamespace=true
+        - RespectIgnoreDifferences=true
+      destination:
+        server: '{{.server}}'
+        namespace: demo-oadp-backup-restore
+      ignoreDifferences:
+      - group: "objectbucket.io"
+        kind: "ObjectBucketClaim"
+        jsonPointers:
+        - /spec/objectBucketName

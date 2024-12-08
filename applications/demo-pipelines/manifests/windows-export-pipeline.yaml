@@ -1,0 +1,519 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  annotations:
+    description: windows-customize pipeline provides functionality for windows VMs
+      to deploy appliations into windows VM and then exporting VM's disk as container images.
+  name: windows-customize-and-export
+spec:
+  finally:
+  - name: cleanup-vm
+    params:
+    - name: vmName
+      value: $(tasks.create-vm-from-template.results.name)
+    - name: delete
+      value: "true"
+    taskRef:
+      kind: Task
+      name: cleanup-vm
+    timeout: 10m0s
+  - name: delete-template-customize
+    params:
+    - name: templateName
+      value: $(params.customizeTemplateName)
+    - name: templateNamespace
+      value: $(tasks.copy-template-customize.results.namespace)
+    - name: deleteTemplate
+      value: "true"
+    taskRef:
+      kind: Task
+      name: modify-vm-template
+  - name: cleanup-ansible-resources
+    params:
+    - name: project-dir
+      value: kubernetes
+    - name: args
+      value:
+      - -pcleanup.yaml
+    - name: user-home
+      value: /workspace/runner-dir
+    taskRef:
+      kind: Task
+      name: ansible-runner
+    workspaces:
+    - name: runner-dir
+      workspace: pipeline-artifacts
+  params:
+  - default: windows2k16-server-medium
+    description: Name of the Template which is used to customize Windows and create
+      a golden Template. The default boot source of this template needs to be available.
+    name: sourceTemplateName
+    type: string
+  - default: openshift
+    description: Namespace of the Template which is used to customize Windows and
+      create a golden Template. The default boot source of this template needs to
+      be available.
+    name: sourceTemplateNamespace
+    type: string
+  - default: sysprep-unattend.xml
+    description: Name of the ConfigMap containing the customization and sysprep configuration
+      files (unattend.xml, etc.). For example windows10-sqlserver or windows11-vs-code.
+      It is possible to provide customize ConfigMaps created by the user too.
+    name: customizeConfigMapName
+    type: string
+  - default: windows2k16-server-medium-custom
+    description: Name of the customize Template which is created. A VM created from
+      this template is used to customize Windows.
+    name: customizeTemplateName
+    type: string
+  - default: "true"
+    description: Allow to replace an already existing customize Template.
+    name: allowReplaceCustomizationTemplate
+    type: string
+  - default: windows2k16-server-medium-golden
+    description: Name of the golden Template which is created. Pre-installed Windows
+      VMs can be created from this template.
+    name: goldenTemplateName
+    type: string
+  - default: "true"
+    description: Allow to replace an already existing golden Template.
+    name: allowReplaceGoldenTemplate
+    type: string
+  - default: win2k16
+    description: Name of the PVC Name to use as the base image
+    name: sourcePersistentVolumeClaimName
+    type: string
+  - default: openshift-virtualization-os-images
+    description: Name of the PVC Name to use as the base image
+    name: sourcePersistentVolumeClaimNamespace
+    type: string
+  - default: 32Gi
+    description: Size of the bootable Data Volume
+    name: dataVolumeSize
+    type: string
+  - default: "5986"
+    description: Service Port
+    name: svcPort
+    type: string
+  - default: latest
+    description: Tag of the container image
+    name: imageTag
+    type: string
+  results:
+  - description: Name of the created base DataVolume
+    name: baseDvName
+    value: $(tasks.create-base-dv.results.name)
+  - description: Namespace of the created base DataVolume
+    name: baseDvNamespace
+    value: $(tasks.create-base-dv.results.namespace)
+  - description: Name of the created golden Template
+    name: goldenTemplateName
+    value: $(tasks.copy-template-golden.results.name)
+  - description: Namespace of the created golden Template
+    name: goldenTemplateNamespace
+    value: $(tasks.copy-template-golden.results.namespace)
+  tasks:
+  - name: copy-template-customize
+    params:
+    - name: sourceTemplateName
+      value: $(params.sourceTemplateName)
+    - name: sourceTemplateNamespace
+      value: $(params.sourceTemplateNamespace)
+    - name: targetTemplateName
+      value: $(params.customizeTemplateName)
+    - name: allowReplace
+      value: $(params.allowReplaceCustomizationTemplate)
+    taskRef:
+      kind: Task
+      name: copy-template
+    timeout: 10m0s
+  - name: modify-vm-template-customize
+    params:
+    - name: templateName
+      value: $(tasks.copy-template-customize.results.name)
+    - name: templateAnnotations
+      value:
+      - 'openshift.io/display-name: Microsoft Windows Customize VM'
+      - 'description: Template for customizing Microsoft Windows.'
+    - name: deleteDatavolumeTemplate
+      value: "true"
+    - name: datavolumeTemplates
+      value:
+        - |
+          {
+            "apiVersion": "cdi.kubevirt.io/v1beta1",
+            "kind": "DataVolume",
+            "metadata": {
+                "name": "${NAME}"
+            },
+            "spec": {
+              "storage": {
+                "resources": {
+                  "requests": {
+                    "storage": "$(params.dataVolumeSize)"
+                  }
+                } 
+              },
+              "source": {
+                "pvc": {
+                  "name": "$(params.sourcePersistentVolumeClaimName)",
+                    "namespace": "$(params.sourcePersistentVolumeClaimNamespace)"
+                  }
+              }
+            }
+          }
+    - name: disks
+      value:
+      - '{"name": "rootdisk", "disk": {"bus": "virtio"}}'
+      - '{"name": "sysprep", "cdrom": {"bus": "sata"}}'
+    - name: volumes
+      value:
+      - '{"name": "rootdisk", "dataVolume": {"name": "${NAME}"}}'
+      - '{"name": "sysprep", "sysprep": {"configMap": {"name": "$(params.customizeConfigMapName)"}}}'
+    - name: templateNamespace
+      value: ""
+    runAfter:
+    - copy-template-customize
+    taskRef:
+      kind: Task
+      name: modify-vm-template
+    timeout: 10m0s
+  - name: create-vm-from-template
+    params:
+    - name: templateName
+      value: $(tasks.modify-vm-template-customize.results.name)
+    - name: runStrategy
+      value: RerunOnFailure
+    - name: startVM
+      value: "true"
+    runAfter:
+    - modify-vm-template-customize
+    taskRef:
+      kind: Task
+      name: create-vm-from-template
+    timeout: 10m0s
+  - name: wait-for-vmi-status-stopped
+    params:
+    - name: vmiName
+      value: $(tasks.create-vm-from-template.results.name)
+    - name: successCondition
+      value: status.phase == Succeeded
+    - name: failureCondition
+      value: status.phase in (Failed, Unknown)
+    runAfter:
+    - deploy-application
+    taskRef:
+      kind: Task
+      name: wait-for-vmi-status
+    timeout: 2h0m0s
+  - name: create-base-dv
+    params:
+    - name: manifest
+      value: |
+        apiVersion: cdi.kubevirt.io/v1beta1
+        kind: DataVolume
+        metadata:
+          name: windows-base-$(params.imageTag)
+          annotations:
+            cdi.kubevirt.io/storage.bind.immediate.requested: \"true\"
+            cdi.kubevirt.io/storage.deleteAfterCompletion: "false"
+        spec:
+          storage:
+            resources:
+              requests:
+                storage: $(params.dataVolumeSize)
+          source:
+            pvc:
+              name: $(tasks.create-vm-from-template.results.name)
+              namespace: $(tasks.create-vm-from-template.results.namespace)
+    - name: waitForSuccess
+      value: "true"
+    runAfter:
+    - wait-for-vmi-status-stopped
+    taskRef:
+      kind: Task
+      name: modify-data-object
+    timeout: 1h0m0s
+  - name: copy-template-golden
+    params:
+    - name: sourceTemplateName
+      value: $(params.sourceTemplateName)
+    - name: sourceTemplateNamespace
+      value: $(params.sourceTemplateNamespace)
+    - name: targetTemplateName
+      value: $(params.goldenTemplateName)
+    - name: allowReplace
+      value: $(params.allowReplaceGoldenTemplate)
+    runAfter:
+    - create-base-dv
+    taskRef:
+      kind: Task
+      name: copy-template
+    timeout: 30m0s
+  - name: modify-vm-template-golden
+    params:
+    - name: templateName
+      value: $(tasks.copy-template-golden.results.name)
+    - name: templateAnnotations
+      value:
+      - 'openshift.io/display-name: Microsoft Windows Customized VM Golden'
+      - 'description: Template for creating customized Microsoft Windows VMs.'
+    - name: deleteDatavolumeTemplate
+      value: "true"
+    - name: datavolumeTemplates
+      value:
+      - |
+        {
+          "apiVersion": "cdi.kubevirt.io/v1beta1",
+          "kind": "DataVolume",
+          "metadata": {
+              "name": "${NAME}"
+          },
+          "spec": {
+            "storage": {
+              "resources": {
+                "requests": {
+                  "storage": "$(params.dataVolumeSize)"
+                }
+              }
+            },
+            "source": {
+              "pvc": {
+                "name": "$(tasks.create-base-dv.results.name)",
+                "namespace": "$(tasks.create-base-dv.results.namespace)"
+              }
+            }
+          }
+        }
+    - name: deleteDisks
+      value: "true"
+    - name: disks
+      value:
+      - '{"name": "rootdisk", "disk": {"bus": "virtio"}}'
+    - name: deleteVolumes
+      value: "true"
+    - name: volumes
+      value:
+      - '{"name": "rootdisk", "dataVolume": {"name": "${NAME}"}}'
+    - name: deleteTemplateParameters
+      value: "true"
+    - name: templateParameters
+      value:
+      - '{"name": "NAME", "description": "VM name", "generate": "expression", "from":
+        "windows-[a-z0-9]{6}"}'
+    runAfter:
+    - copy-template-golden
+    taskRef:
+      kind: Task
+      name: modify-vm-template
+    timeout: 10m0s
+  - name: wait-for-vmi-status-running
+    params:
+    - name: vmiName
+      value: $(tasks.create-vm-from-template.results.name)
+    - name: vmiNamespace
+      value: ""
+    - name: successCondition
+      value: status.phase == Running
+    - name: failureCondition
+      value: status.phase in (Failed, Unknown)
+    runAfter:
+    - create-vm-from-template
+    taskRef:
+      kind: Task
+      name: wait-for-vmi-status
+  - name: create-service
+    params:
+    - name: project-dir
+      value: kubernetes
+    - name: args
+      value:
+      - -pcreate-service.yml
+    - name: user-home
+      value: /workspace/runner-dir
+    runAfter:
+    - wait-for-vmi-status-running
+    - generate-ansible-variables
+    - create-ansible-inventory
+    taskRef:
+      kind: Task
+      name: ansible-runner
+    workspaces:
+    - name: runner-dir
+      workspace: pipeline-artifacts
+  - name: download-ansible-playbooks
+    params:
+    - name: url
+      value: https://github.com/kseremet/tektoncd-ansible-runner.git
+    - name: revision
+      value: master
+    - name: refspec
+      value: ""
+    - name: submodules
+      value: "true"
+    - name: depth
+      value: "1"
+    - name: sslVerify
+      value: "true"
+    - name: crtFileName
+      value: ca-bundle.crt
+    - name: subdirectory
+      value: ""
+    - name: sparseCheckoutDirectories
+      value: ""
+    - name: deleteExisting
+      value: "true"
+    - name: httpProxy
+      value: ""
+    - name: httpsProxy
+      value: ""
+    - name: noProxy
+      value: ""
+    - name: verbose
+      value: "true"
+    - name: gitInitImage
+      value: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.40.2
+    - name: userHome
+      value: /home/git
+    runAfter:
+    - create-vm-from-template
+    taskRef:
+      kind: Task
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: pipeline-artifacts
+  - name: generate-ansible-variables
+    params:
+    - name: path
+      value: ./kubernetes/env/extravars
+    - name: contents
+      value: |
+        ---
+        service_name: $(tasks.create-vm-from-template.results.name)
+        namespace: $(tasks.create-vm-from-template.results.namespace)
+        service_selector_label_value: $(tasks.create-vm-from-template.results.name)
+        service_port: $(params.svcPort)
+        vm_name: $(tasks.create-vm-from-template.results.name)
+        pvc_name: windows-base-$(params.imageTag)
+        pipelinerun_uid: $(context.pipelineRun.uid)
+    - name: mode
+      value: "0755"
+    runAfter:
+    - download-ansible-playbooks
+    taskRef:
+      kind: Task
+      name: write-file
+    workspaces:
+    - name: output
+      workspace: pipeline-artifacts
+  - name: create-ansible-inventory
+    params:
+    - name: path
+      value: ./kubernetes/inventory/hosts.yaml
+    - name: contents
+      value: |
+        ---
+        all:
+          hosts:
+            $(tasks.create-vm-from-template.results.name):
+              ansible_user: Administrator
+              ansible_password: qazxsw56=
+              ansible_connection: winrm
+              ansible_winrm_server_cert_validation: ignore
+    - name: mode
+      value: "0755"
+    runAfter:
+    - download-ansible-playbooks
+    taskRef:
+      kind: Task
+      name: write-file
+    workspaces:
+    - name: output
+      workspace: pipeline-artifacts
+  - name: deploy-application
+    params:
+    - name: project-dir
+      value: kubernetes
+    - name: args
+      value:
+      - -pdeploy_application.yaml
+    - name: user-home
+      value: /workspace/runner-dir
+    runAfter:
+    - create-service
+    taskRef:
+      kind: Task
+      name: ansible-runner
+    workspaces:
+    - name: runner-dir
+      workspace: pipeline-artifacts
+  - name: export-vm-disk
+    params:
+    - name: project-dir
+      value: kubernetes
+    - name: args
+      value:
+      - -pexport_vm_disk.yaml
+    - name: user-home
+      value: /workspace/runner-dir
+    runAfter:
+    - modify-vm-template-golden
+    - generate-dockerfile
+    - copy-template-golden
+    taskRef:
+      kind: Task
+      name: ansible-runner
+    workspaces:
+    - name: runner-dir
+      workspace: pipeline-artifacts
+  - name: generate-dockerfile
+    params:
+    - name: path
+      value: ./files/Dockerfile
+    - name: contents
+      value: |-
+        FROM scratch
+        ADD --chown=107:107 disk.qcow2 /disk/
+    - name: mode
+      value: "0755"
+    runAfter:
+    - copy-template-golden
+    taskRef:
+      kind: Task
+      name: write-file
+    workspaces:
+    - name: output
+      workspace: pipeline-artifacts
+  - name: build-containerdisk
+    params:
+    - name: IMAGE
+      value: image-registry.openshift-image-registry.svc:5000/demo-pipelines/w2k16-container-disk:$(params.imageTag)
+    - name: BUILDER_IMAGE
+      value: registry.redhat.io/rhel8/buildah@sha256:ac0b8714cc260c94435cab46fe41b3de0ccbc3d93e38c395fa9d52ac49e521fe
+    - name: STORAGE_DRIVER
+      value: vfs
+    - name: DOCKERFILE
+      value: ./files/Dockerfile
+    - name: CONTEXT
+      value: ./files
+    - name: TLSVERIFY
+      value: "true"
+    - name: FORMAT
+      value: oci
+    - name: BUILD_EXTRA_ARGS
+      value: ""
+    - name: PUSH_EXTRA_ARGS
+      value: ""
+    - name: SKIP_PUSH
+      value: "false"
+    runAfter:
+    - export-vm-disk
+    taskRef:
+      kind: ClusterTask
+      name: buildah
+    workspaces:
+    - name: source
+      workspace: pipeline-artifacts
+  workspaces:
+  - name: pipeline-artifacts

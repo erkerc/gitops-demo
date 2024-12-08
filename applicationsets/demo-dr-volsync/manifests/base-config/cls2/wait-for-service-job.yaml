@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "40"
+  name: wait-for-service-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: wait-for-service
+        image: quay.io/openshift/origin-cli:latest
+        command: ["sh", "-c", "while ! kubectl get service volsync-rsync-tls-dst-fedora-demo-vm-replication-dest --ignore-not-found; do echo 'Waiting for service...'; sleep 5; done; echo 'Service found!'"]
+      restartPolicy: Never
+      serviceAccountName: volsync-dst-fedora-demo-vm-replication-dest

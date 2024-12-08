@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "39"
+  name: create-data-protection-application
+spec:
+  template:
+    spec:
+      containers:
+      - name: create-dpa
+        image: alpine/k8s:1.30.0
+        command:
+        - sh
+        - -c
+        - |
+          BUCKET=$(kubectl get obc oadp-backups -o jsonpath='{.spec.bucketName}')
+          cat << EOF > /tmp/dpa.yaml
+          apiVersion: oadp.openshift.io/v1alpha1
+          kind: DataProtectionApplication
+          metadata:
+            name: demo-oadp-dpa
+          spec:
+            backupLocations:
+            - velero:
+                config:
+                  insecureSkipTLSVerify: "true"
+                  profile: default
+                  region: minio
+                  s3ForcePathStyle: "true"
+                  s3Url: https://rgw.apps.openshift.demoes.live:443
+                credential:
+                  key: cloud
+                  name: cloud-credentials
+                default: true
+                objectStorage:
+                  bucket: $BUCKET
+                  prefix: velero
+                provider: aws
+            configuration:
+              nodeAgent:
+                enable: true
+                uploaderType: kopia
+              velero:
+                defaultPlugins:
+                - openshift
+                - aws
+                - csi
+                - kubevirt
+                resourceTimeout: 10m
+          EOF
+          kubectl apply -f /tmp/dpa.yaml
+      restartPolicy: Never
+      serviceAccountName: gitops-job

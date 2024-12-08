@@ -1,0 +1,83 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  annotations:
+    manifest.params.task.kubevirt.io/apiVersion: cdi.kubevirt.io/v1beta1
+    manifest.params.task.kubevirt.io/type: resource-yaml
+    task.kubevirt.io/associatedServiceAccount: modify-data-object-task
+    waitForSuccess.params.task.kubevirt.io/type: boolean
+  labels:
+    app.kubernetes.io/component: tektonTasks
+    app.kubernetes.io/name: tekton-tasks
+    task.kubevirt.io/category: modify-data-object
+    task.kubevirt.io/type: modify-data-object
+  name: modify-data-object
+spec:
+  description: This task modifies a data object (DataVolume or DataSource). It can
+    optionally wait until CDI imports finish.
+  params:
+  - default: ""
+    description: YAML manifest of a data object to be created.
+    name: manifest
+    type: string
+  - default: ""
+    description: Namespace where to create the data object. (defaults to manifest
+      namespace or active namespace)
+    name: namespace
+    type: string
+  - default: "false"
+    description: Set to "true" or "false" if container should wait for Ready condition
+      of the data object.
+    name: waitForSuccess
+    type: string
+  - default: "false"
+    description: Allow replacing an already existing data object (same combination
+      name/namespace). Allowed values true/false
+    name: allowReplace
+    type: string
+  - default: "false"
+    description: Set to `true` or `false` if task should delete the specified DataVolume,
+      DataSource or PersistentVolumeClaim. If set to 'true' the ds/dv/pvc will be
+      deleted and all other parameters are ignored.
+    name: deleteObject
+    type: string
+  - default: ""
+    description: Kind of the data object to delete. This parameter is used only for
+      Delete operation.
+    name: deleteObjectKind
+    type: string
+  - default: ""
+    description: Name of the data object to delete. This parameter is used only for
+      Delete operation.
+    name: deleteObjectName
+    type: string
+  results:
+  - description: The name of the data object that was created.
+    name: name
+    type: string
+  - description: The namespace of the data object that was created.
+    name: namespace
+    type: string
+  steps:
+  - args:
+    - --output=yaml
+    command:
+    - modify-data-object
+    computeResources: {}
+    env:
+    - name: DATA_OBJECT_MANIFEST
+      value: $(params.manifest)
+    - name: DATA_OBJECT_NAMESPACE
+      value: $(params.namespace)
+    - name: WAIT_FOR_SUCCESS
+      value: $(params.waitForSuccess)
+    - name: ALLOW_REPLACE
+      value: $(params.allowReplace)
+    - name: DELETE_OBJECT
+      value: $(params.deleteObject)
+    - name: DELETE_OBJECT_KIND
+      value: $(params.deleteObjectKind)
+    - name: DELETE_OBJECT_NAME
+      value: $(params.deleteObjectName)
+    image: registry.redhat.io/container-native-virtualization/kubevirt-tekton-tasks-create-datavolume-rhel9:v4.14
+    name: modify-data-object

@@ -1,0 +1,83 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  annotations:
+    dataVolumes.params.task.kubevirt.io/apiVersion: cdi.kubevirt.io/v1beta1
+    dataVolumes.params.task.kubevirt.io/kind: DataVolume
+    ownDataVolumes.params.task.kubevirt.io/apiVersion: cdi.kubevirt.io/v1beta1
+    ownDataVolumes.params.task.kubevirt.io/kind: DataVolume
+    ownPersistentVolumeClaims.params.task.kubevirt.io/apiVersion: v1
+    ownPersistentVolumeClaims.params.task.kubevirt.io/kind: PersistentVolumeClaim
+    persistentVolumeClaims.params.task.kubevirt.io/apiVersion: v1
+    persistentVolumeClaims.params.task.kubevirt.io/kind: PersistentVolumeClaim
+    startVM.params.task.kubevirt.io/type: boolean
+    task.kubevirt.io/associatedServiceAccount: create-vm-from-template-task
+    templateName.params.task.kubevirt.io/apiVersion: template.openshift.io/v1
+    templateName.params.task.kubevirt.io/kind: Template
+    templateName.params.task.kubevirt.io/type: vm-template-name
+    templateNamespace.params.task.kubevirt.io/type: namespace
+    templateParams.params.task.kubevirt.io/type: template-params-array
+    vmNamespace.params.task.kubevirt.io/type: namespace
+  labels:
+    app.kubernetes.io/component: tektonTasks
+    app.kubernetes.io/name: tekton-tasks
+    task.kubevirt.io/category: create-vm
+    task.kubevirt.io/type: create-vm-from-template
+  name: create-vm-from-template
+spec:
+  params:
+  - description: Name of an OKD template to create VM from.
+    name: templateName
+    type: string
+  - default: ""
+    description: Namespace of an OKD template to create VM from. (defaults to active
+      namespace)
+    name: templateNamespace
+    type: string
+  - default: []
+    description: Template params to pass when processing the template manifest. Each
+      param should have KEY:VAL format. Eg ["NAME:my-vm", "DESC:blue"]
+    name: templateParams
+    type: array
+  - default: ""
+    description: Namespace where to create the VM. (defaults to active namespace)
+    name: vmNamespace
+    type: string
+  - default: ""
+    description: Set to true or false to start / not start vm after creation. In case
+      of runStrategy is set to Always, startVM flag is ignored.
+    name: startVM
+    type: string
+  - default: ""
+    description: Set runStrategy to VM. If runStrategy is set, vm.spec.running attribute
+      is set to nil.
+    name: runStrategy
+    type: string
+  results:
+  - description: The name of a VM that was created.
+    name: name
+    type: string
+  - description: The namespace of a VM that was created.
+    name: namespace
+    type: string
+  steps:
+  - args:
+    - --output=yaml
+    - --template-params
+    - $(params.templateParams)
+    command:
+    - create-vm
+    computeResources: {}
+    env:
+    - name: TEMPLATE_NAME
+      value: $(params.templateName)
+    - name: TEMPLATE_NAMESPACE
+      value: $(params.templateNamespace)
+    - name: VM_NAMESPACE
+      value: $(params.vmNamespace)
+    - name: START_VM
+      value: $(params.startVM)
+    - name: RUN_STRATEGY
+      value: $(params.runStrategy)
+    image: registry.redhat.io/container-native-virtualization/kubevirt-tekton-tasks-create-datavolume-rhel9:v4.14
+    name: createvm

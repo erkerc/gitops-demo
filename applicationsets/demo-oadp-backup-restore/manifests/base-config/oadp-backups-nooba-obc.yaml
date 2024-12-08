@@ -1,0 +1,12 @@
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "19"
+  name: oadp-backups
+spec:
+  additionalConfig:
+    bucketclass: noobaa-default-bucket-class
+  generateBucketName: oadp-backups
+  objectBucketName: obc-demo-oadp-backups
+  storageClassName: openshift-storage.noobaa.io

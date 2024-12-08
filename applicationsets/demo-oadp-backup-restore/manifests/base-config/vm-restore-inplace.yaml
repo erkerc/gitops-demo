@@ -1,0 +1,7 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: demo-oadp-restore-1
+spec:
+  backupName: demo-oadp-backup-1
+  restorePVs: true

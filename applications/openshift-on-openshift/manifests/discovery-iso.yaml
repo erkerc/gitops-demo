@@ -1,0 +1,17 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+  name: discovery.iso
+spec:
+  source:
+    http:
+      url: "https://api.openshift.com/api/assisted-images/bytoken/eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MTM0NTE2NDYsInN1YiI6IjE5MzhjMjU2LTFjY2YtNDk2OS1iNzhjLWY1MjdhZWQzNTc5YyJ9.Ik5ivt7x1sH_sa5zoMVv3Z9Ko8nkJnjbkT_cEiNmW3E/4.14/x86_64/full.iso"
+  pvc:
+    volumeMode: Block
+    accessModes:
+      - ReadWriteMany
+    resources:
+      requests:
+        storage: 4Gi

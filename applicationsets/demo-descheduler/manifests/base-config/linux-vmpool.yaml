@@ -1,0 +1,98 @@
+apiVersion: pool.kubevirt.io/v1alpha1
+kind: VirtualMachinePool
+metadata:
+  name: vmpool-linux
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      kubevirt.io/vmpool: vmpool-linux
+  virtualMachineTemplate:
+    metadata:
+      name: linux-demo-vm
+      labels:
+        app: demo-descheduler
+        kubevirt.io/vmpool: vmpool-linux
+        app.kubernetes.io/part-of: vmpool-linux
+    spec:
+      dataVolumeTemplates:
+        - apiVersion: cdi.kubevirt.io/v1beta1
+          kind: DataVolume
+          metadata:
+            name: linux-demo-vm
+          spec:
+            sourceRef:
+              kind: DataSource
+              name: fedora
+              namespace: openshift-virtualization-os-images
+            storage:
+              resources:
+                requests:
+                  storage: 30Gi
+      running: true
+      template:
+        metadata:
+          annotations:
+            vm.kubevirt.io/flavor: small
+            vm.kubevirt.io/os: fedora
+            vm.kubevirt.io/workload: server
+          labels:
+            kubevirt.io/domain: linux-demo-vm
+            kubevirt.io/size: small
+            kubevirt.io/vmpool: vmpool-linux
+            app.kubernetes.io/part-of: vmpool-linux
+            app: demo-descheduler
+        spec:
+          architecture: amd64
+          domain:
+            cpu:
+              cores: 4
+              sockets: 1
+              threads: 1
+            devices:
+              disks:
+                - disk:
+                    bus: virtio
+                  name: rootdisk
+                - disk:
+                    bus: virtio
+                  name: cloudinitdisk
+              interfaces:
+                - masquerade: {}
+                  model: virtio
+                  name: default
+              networkInterfaceMultiqueue: true
+              rng: {}
+            features:
+              acpi: {}
+              smm:
+                enabled: true
+            firmware:
+              bootloader:
+                efi: {}
+            machine:
+              type: pc-q35-rhel9.2.0
+            memory:
+              guest: 8Gi
+            resources:
+              requests:
+                memory: 8Gi
+                cpu: 4
+          networks:
+            - name: default
+              pod: {}
+          terminationGracePeriodSeconds: 180
+          volumes:
+            - dataVolume:
+                name: linux-demo-vm
+              name: rootdisk
+            - cloudInitNoCloud:
+                userData: |
+                  #cloud-config
+                  user: fedora
+                  password: fedora
+                  chpasswd:
+                    expire: false
+              name: cloudinitdisk

@@ -1,0 +1,16 @@
+apiVersion: volsync.backube/v1alpha1
+kind: ReplicationSource
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "59"
+  name: fedora-demo-vm-replication-src
+spec:
+  sourcePVC: fedora-demo-vm
+  trigger:
+    schedule: "*/15 * * * *"
+  rsyncTLS:
+    keySecret: tls-key-secret-fedora-demo-vm
+    address: fedora-demo-vm-replication-dest
+    copyMethod: Snapshot
+    storageClassName: lvms-vg1
+    volumeSnapshotClassName: lvms-vg1

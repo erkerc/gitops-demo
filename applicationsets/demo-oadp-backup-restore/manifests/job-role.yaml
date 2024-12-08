@@ -1,0 +1,16 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "19"
+  name: gitops-job
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "delete", "patch", "get", "list", "watch"]
+- apiGroups: ["oadp.openshift.io"]
+  resources: ["dataprotectionapplications"]
+  verbs: ["create", "delete", "patch", "get", "list", "watch"]
+- apiGroups: ["objectbucket.io"]
+  resources: ["objectbucketclaims"]
+  verbs: ["create", "delete", "patch", "get", "list", "watch"]

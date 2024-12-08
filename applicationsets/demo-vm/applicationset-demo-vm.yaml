@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: demo-vm
+spec:
+  generators:
+  # Only select external clusters, excludes local cluster
+  - clusters:
+      selector:
+        matchLabels:
+          argocd.argoproj.io/secret-type: cluster
+  template:
+    metadata:
+      name: "{{nameNormalized}}-demo-vm"
+    spec:
+      project: default
+      source:
+        repoURL: https://gitea.apps.openshift.demoes.live/demo-user/gitops-demo.git
+        targetRevision: HEAD
+        path: "applicationsets/demo-vm/kustomize/{{metadata.labels.env}}"
+        kustomize:
+          commonAnnotations:
+            managed-cluster: "{{nameNormalized}}"
+      destination:
+        server: "{{server}}"
+        namespace: demo-vm
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true
+        automated:
+          selfHeal: true
+          prune: true

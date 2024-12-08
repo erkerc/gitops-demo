@@ -1,0 +1,69 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  annotations:
+    allowReplace.params.task.kubevirt.io/type: boolean
+    sourceTemplateName.params.task.kubevirt.io/apiVersion: template.openshift.io/v1
+    sourceTemplateName.params.task.kubevirt.io/kind: Template
+    sourceTemplateNamespace.params.task.kubevirt.io/type: namespace
+    targetTemplateName.params.task.kubevirt.io/apiVersion: template.openshift.io/v1
+    targetTemplateName.params.task.kubevirt.io/kind: Template
+    targetTemplateNamespace.params.task.kubevirt.io/type: namespace
+    task.kubevirt.io/associatedServiceAccount: copy-template-task
+  labels:
+    app.kubernetes.io/component: tektonTasks
+    app.kubernetes.io/name: tekton-tasks
+    task.kubevirt.io/category: copy-template
+    task.kubevirt.io/type: copy-template
+    tekton-tasks.kubevirt.io/version: v0.15.1
+  name: copy-template
+spec:
+  params:
+  - description: Name of an OpenShift template to copy template from.
+    name: sourceTemplateName
+    type: string
+  - default: ""
+    description: Namespace of an source OpenShift template to copy template from.
+      (defaults to active namespace)
+    name: sourceTemplateNamespace
+    type: string
+  - default: ""
+    description: Name of an target OpenShift template.
+    name: targetTemplateName
+    type: string
+  - default: ""
+    description: Namespace of an target OpenShift template to create in. (defaults
+      to active namespace)
+    name: targetTemplateNamespace
+    type: string
+  - default: "false"
+    description: Allow replacing already existing template (same combination name/namespace).
+      Allowed values true/false
+    name: allowReplace
+    type: string
+  results:
+  - description: The name of a template that was created.
+    name: name
+    type: string
+  - description: The namespace of a template that was created.
+    name: namespace
+    type: string
+  steps:
+  - args:
+    - --output=yaml
+    command:
+    - copy-template
+    computeResources: {}
+    env:
+    - name: SOURCE_TEMPLATE_NAME
+      value: $(params.sourceTemplateName)
+    - name: SOURCE_TEMPLATE_NAMESPACE
+      value: $(params.sourceTemplateNamespace)
+    - name: TARGET_TEMPLATE_NAME
+      value: $(params.targetTemplateName)
+    - name: TARGET_TEMPLATE_NAMESPACE
+      value: $(params.targetTemplateNamespace)
+    - name: ALLOW_REPLACE
+      value: $(params.allowReplace)
+    image: registry.redhat.io/container-native-virtualization/kubevirt-tekton-tasks-create-datavolume-rhel9:v4.14
+    name: copytemplate

@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openshift-on-openshift
+spec:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  project: default
+  source:
+    repoURL: https://gitea.apps.openshift.demoes.live/demo-user/gitops-demo.git
+    path: applications/openshift-on-openshift/manifests
+    targetRevision: HEAD
+    directory:
+      jsonnet:
+        extVars:
+        - name: namespace
+          value: default
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false

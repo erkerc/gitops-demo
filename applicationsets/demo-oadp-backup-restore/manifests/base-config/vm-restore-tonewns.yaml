@@ -1,0 +1,20 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: demo-oadp-restore-1
+spec:
+  backupName: demo-oadp-backup-1
+  excludedResources:
+    - nodes
+    - events
+    - events.events.k8s.io
+    - backups.velero.io
+    - restores.velero.io
+    - resticrepositories.velero.io
+    - deployments.apps
+    - daemonset.apps
+    - replicaset.apps
+    - jobs.batch
+  namespaceMapping:
+    demo-oadp-backup-restore: demo-oadp-restored-vms
+  restorePVs: true

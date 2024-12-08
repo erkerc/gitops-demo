@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "19"
+  name: skupper-site
+data:
+  console: "true"
+  console-user: admin
+  flow-collector: "true"
+  name: cls1

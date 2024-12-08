@@ -1,0 +1,50 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  labels:
+    kubevirt.io/vm: demo-vm
+  name: demo-vm
+spec:
+  dataVolumeTemplates:
+  - metadata:
+      creationTimestamp: null
+      name: src-disk
+    spec:
+      storage:
+        accessModes:
+        - ReadWriteOnce
+        volumeMode: Block
+        resources:
+          requests:
+            storage: 2Gi
+        storageClassName: lvms-vg-rhsrv1
+      source:
+        registry:
+          url: docker://quay.io/kubevirt/alpine-container-disk-demo:20241126_959eee0dfd
+  runStrategy: "Always"
+  updateVolumesStrategy: Migration
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: demo-vm
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: disk1
+          interfaces:
+          - masquerade: {}
+            name: default
+        resources:
+          requests:
+            memory: 128Mi
+      terminationGracePeriodSeconds: 0
+      volumes:
+      - dataVolume:
+          name: src-disk
+        name: disk1
+      networks:
+      - name: default
+        pod: {}
