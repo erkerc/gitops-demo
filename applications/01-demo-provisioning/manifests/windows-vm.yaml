@@ -63,7 +63,8 @@ spec:
               name: tablet
               type: tablet
           interfaces:
-            - masquerade: {}
+            - macAddress: '02:a4:1a:00:01:18'
+              masquerade: {}
               model: virtio
               name: default
         features:
